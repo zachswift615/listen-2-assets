@@ -1,0 +1,11 @@
+# Repackaged voices (don't commit, they go to releases)
+repackaged-voices/
+*.tar.zst
+*.tar.bz2
+*.tar
+
+# OS
+.DS_Store
+
+# Temp
+/tmp/
