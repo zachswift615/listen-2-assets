@@ -262,7 +262,7 @@ MANIFEST_EOF
     # Build voice list from packaged voice files
     VOICE_JSON="["
     FIRST=true
-    for voice_file in "$WORK_DIR/$ARCHIVE_NAME/voices/"*.json; do
+    for voice_file in "$KOKORO_DIR/voices/"*.json; do
         voice_name=$(basename "$voice_file" .json)
 
         # Determine language and gender from prefix
