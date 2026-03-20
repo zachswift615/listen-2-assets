@@ -160,15 +160,18 @@ for model in "${MODELS[@]}"; do
 done
 
 # Clean work directory
+# FluidAudio expects models at {directory}/Models/kokoro/
+# so the archive extracts to kokoro-engine-v1/Models/kokoro/
 rm -rf "$WORK_DIR"
-mkdir -p "$WORK_DIR/$ARCHIVE_NAME/voices"
+KOKORO_DIR="$WORK_DIR/$ARCHIVE_NAME/Models/kokoro"
+mkdir -p "$KOKORO_DIR/voices"
 mkdir -p "$OUTPUT_DIR"
 
 # Copy CoreML models
 echo "Copying CoreML models..."
 for model in "${MODELS[@]}"; do
     echo "  $model"
-    cp -r "$SOURCE_DIR/$model" "$WORK_DIR/$ARCHIVE_NAME/"
+    cp -r "$SOURCE_DIR/$model" "$KOKORO_DIR/"
 done
 
 # Copy config/lexicon files
@@ -176,7 +179,7 @@ echo "Copying config and lexicon files..."
 for file in "${CONFIG_FILES[@]}"; do
     if [[ -f "$SOURCE_DIR/$file" ]]; then
         echo "  $file"
-        cp "$SOURCE_DIR/$file" "$WORK_DIR/$ARCHIVE_NAME/"
+        cp "$SOURCE_DIR/$file" "$KOKORO_DIR/"
     else
         echo "  Warning: $file not found, skipping"
     fi
@@ -190,7 +193,7 @@ for prefix in $V1_VOICE_PREFIXES; do
         if [[ -f "$voice_file" ]]; then
             voice_name=$(basename "$voice_file")
             echo "  $voice_name"
-            cp "$voice_file" "$WORK_DIR/$ARCHIVE_NAME/voices/"
+            cp "$voice_file" "$KOKORO_DIR/voices/"
             VOICE_COUNT=$((VOICE_COUNT + 1))
         fi
     done
@@ -202,9 +205,9 @@ echo ""
 echo "Uncompressed sizes:"
 du -sh "$WORK_DIR/$ARCHIVE_NAME"
 for model in "${MODELS[@]}"; do
-    du -sh "$WORK_DIR/$ARCHIVE_NAME/$model"
+    du -sh "$KOKORO_DIR/$model"
 done
-du -sh "$WORK_DIR/$ARCHIVE_NAME/voices"
+du -sh "$KOKORO_DIR/voices"
 
 # Create tar archive
 echo ""
