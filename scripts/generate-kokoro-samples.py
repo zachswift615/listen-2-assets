@@ -91,6 +91,18 @@ SAMPLE_RATE = 24000
 MP3_BITRATE = "64k"
 MP3_SAMPLE_RATE = 22050
 
+# espeak-ng language codes for sherpa-onnx Kokoro (validated — only these work)
+ESPEAK_LANGS = {
+    "en": "en-us",
+    "es": "es",
+    "fr": "fr",
+    "hi": "hi",
+    "it": "it",
+    "ja": "ja",
+    "pt": "pt-br",
+    "zh": "cmn",
+}
+
 UPLOAD_DIR = os.path.expanduser(
     "~/projects/moonquakemedia-site/src/assets/listen2/samples"
 )
@@ -155,7 +167,7 @@ def main():
     total = len(voices_to_process)
     print(f"Generating {total} voice samples...")
 
-    # Initialize sherpa-onnx Kokoro TTS
+    # Shared model paths
     model_path = str(model_dir / "model.onnx")
     voices_path = str(model_dir / "voices.bin")
     tokens_path = str(model_dir / "tokens.txt")
@@ -169,63 +181,73 @@ def main():
         if (model_dir / f).exists()
     )
 
-    kokoro_config = sherpa_onnx.OfflineTtsKokoroModelConfig(
-        model=model_path,
-        voices=voices_path,
-        tokens=tokens_path,
-        data_dir=data_dir,
-        dict_dir=dict_dir,
-        lexicon=lexicons,
-    )
-    model_config = sherpa_onnx.OfflineTtsModelConfig(kokoro=kokoro_config)
-    tts_config = sherpa_onnx.OfflineTtsConfig(model=model_config)
-
-    print(f"Initializing sherpa-onnx Kokoro TTS from {model_dir}...")
-    tts = sherpa_onnx.OfflineTts(tts_config)
-    print(f"  {tts.num_speakers} speakers, {tts.sample_rate} Hz")
+    # Group voices by language (espeak-ng lang is baked into model config at init)
+    from collections import defaultdict
+    by_lang = defaultdict(list)
+    for lang, voice_id, sid in voices_to_process:
+        by_lang[lang].append((voice_id, sid))
 
     generated = []
 
-    for lang, voice_id, sid in voices_to_process:
+    for lang, voice_list in by_lang.items():
+        espeak_lang = ESPEAK_LANGS.get(lang, "en-us")
+        print(f"\n--- {lang} (espeak={espeak_lang}, {len(voice_list)} voices) ---")
+
+        kokoro_config = sherpa_onnx.OfflineTtsKokoroModelConfig(
+            model=model_path,
+            voices=voices_path,
+            tokens=tokens_path,
+            data_dir=data_dir,
+            dict_dir=dict_dir,
+            lexicon=lexicons,
+            lang=espeak_lang,
+        )
+        model_config = sherpa_onnx.OfflineTtsModelConfig(kokoro=kokoro_config)
+        tts_config = sherpa_onnx.OfflineTtsConfig(model=model_config)
+        tts = sherpa_onnx.OfflineTts(tts_config)
+        print(f"  Initialized: {tts.num_speakers} speakers, {tts.sample_rate} Hz")
+
         sample_text = SAMPLE_TEXTS.get(lang, SAMPLE_TEXTS["en"])
-        mp3_name = f"kokoro-{voice_id}.mp3"
-        mp3_path = output_dir / mp3_name
-        print(f"  {voice_id} (sid={sid}) -> {mp3_name}...", end=" ", flush=True)
 
-        try:
-            audio = tts.generate(text=sample_text, sid=sid, speed=1.0)
-            samples = np.array(audio.samples, dtype=np.float32)
+        for voice_id, sid in voice_list:
+            mp3_name = f"kokoro-{voice_id}.mp3"
+            mp3_path = output_dir / mp3_name
+            print(f"  {voice_id} (sid={sid}) -> {mp3_name}...", end=" ", flush=True)
 
-            if len(samples) == 0:
-                print("FAILED: 0 samples")
-                continue
+            try:
+                audio = tts.generate(text=sample_text, sid=sid, speed=1.0)
+                samples = np.array(audio.samples, dtype=np.float32)
 
-            # Write WAV to temp file
-            import wave
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                wav_path = tmp.name
-            with wave.open(wav_path, "w") as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(audio.sample_rate)
-                int16_samples = (samples * 32767).clip(-32768, 32767).astype(np.int16)
-                wf.writeframes(int16_samples.tobytes())
+                if len(samples) == 0:
+                    print("FAILED: 0 samples")
+                    continue
 
-            # Convert to MP3
-            subprocess.run(
-                ["ffmpeg", "-y", "-i", wav_path, "-ar", str(MP3_SAMPLE_RATE),
-                 "-b:a", MP3_BITRATE, "-ac", "1", str(mp3_path)],
-                capture_output=True, check=True,
-            )
-            os.unlink(wav_path)
+                # Write WAV to temp file
+                import wave
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    wav_path = tmp.name
+                with wave.open(wav_path, "w") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(audio.sample_rate)
+                    int16_samples = (samples * 32767).clip(-32768, 32767).astype(np.int16)
+                    wf.writeframes(int16_samples.tobytes())
 
-            size_kb = mp3_path.stat().st_size // 1024
-            duration_s = len(samples) / audio.sample_rate
-            print(f"OK ({size_kb} KB, {duration_s:.1f}s)")
-            generated.append(mp3_path)
+                # Convert to MP3
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", wav_path, "-ar", str(MP3_SAMPLE_RATE),
+                     "-b:a", MP3_BITRATE, "-ac", "1", str(mp3_path)],
+                    capture_output=True, check=True,
+                )
+                os.unlink(wav_path)
 
-        except Exception as e:
-            print(f"FAILED: {e}")
+                size_kb = mp3_path.stat().st_size // 1024
+                duration_s = len(samples) / audio.sample_rate
+                print(f"OK ({size_kb} KB, {duration_s:.1f}s)")
+                generated.append(mp3_path)
+
+            except Exception as e:
+                print(f"FAILED: {e}")
 
     print(f"\n=== Generated {len(generated)}/{total} samples ===")
 
