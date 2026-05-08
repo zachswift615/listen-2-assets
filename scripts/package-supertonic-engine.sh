@@ -6,11 +6,11 @@
 #        --upload: Upload to GitHub release after packaging
 #
 # Output:
-#   repackaged-voices/supertonic-engine-v1.tar.zst       (~75 MB)
-#   repackaged-voices/supertonic-engine-v1.tar.zst.sha256
+#   repackaged-voices/supertonic-engine-v3.tar.zst       (~170 MB)
+#   repackaged-voices/supertonic-engine-v3.tar.zst.sha256
 #
 # The archive contains:
-#   supertonic-engine-v1/
+#   supertonic-engine-v3/
 #   ├── text_encoder.mlpackage/
 #   ├── duration_predictor.mlpackage/
 #   ├── vector_estimator.mlpackage/
@@ -29,10 +29,10 @@
 set -e
 
 # Configuration
-SUPERTONIC_SOURCE="${SUPERTONIC_SOURCE:-$HOME/projects/supertonic/assets}"
+SUPERTONIC_SOURCE="${SUPERTONIC_SOURCE:-$HOME/projects/supertonic/assets-v3}"
 OUTPUT_DIR="${OUTPUT_DIR:-./repackaged-voices}"
 WORK_DIR="/tmp/supertonic-packaging"
-ARCHIVE_NAME="supertonic-engine-v1"
+ARCHIVE_NAME="supertonic-engine-v3"
 MANIFEST="$OUTPUT_DIR/supertonic-manifest.json"
 ZSTD_LEVEL=19
 GITHUB_REPO="zachswift615/listen-2-assets"
