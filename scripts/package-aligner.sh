@@ -34,7 +34,14 @@ RELEASE_TAG="voices-v1"
 # All languages that could have alignment models
 # English is bundled in the app — it gets uploaded too so the app
 # can update it OTA in the future, but it's not required for download.
-ALIGNER_LANGUAGES=(en es fr de hu sv ru it vi pt)
+# Per-engine keys (e.g., kokoro-en, supertonic-en) are for engine-specific models.
+ALIGNER_LANGUAGES=(en es fr de hu sv ru it vi pt
+    supertonic-en supertonic-es supertonic-pt supertonic-fr
+    supertonic-v3-en supertonic-v3-es supertonic-v3-it supertonic-v3-fr
+    supertonic-v3-de supertonic-v3-sv supertonic-v3-el supertonic-v3-vi
+    supertonic-v3-ru supertonic-v3-tr supertonic-v3-pt supertonic-v3-hi
+    supertonic-v3-hu
+    kokoro-en kokoro-es kokoro-fr kokoro-hi kokoro-it kokoro-pt)
 
 # Parse arguments
 LANG_FILTER=""
